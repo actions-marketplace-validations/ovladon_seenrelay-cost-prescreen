@@ -1,0 +1,38 @@
+name: Self test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  self-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run the action against this repository
+        id: prescreen
+        uses: ./
+
+      - name: Verify bounded outputs
+        shell: bash
+        env:
+          STATIC_STATUS: ${{ steps.prescreen.outputs.static_status }}
+          CANDIDATE_FILES: ${{ steps.prescreen.outputs.candidate_files }}
+          DECISION: ${{ steps.prescreen.outputs.decision }}
+          REPORT_PATH: ${{ steps.prescreen.outputs.report_path }}
+          PLAN_PATH: ${{ steps.prescreen.outputs.plan_path }}
+        run: |
+          set -euo pipefail
+          test -n "$STATIC_STATUS"
+          test -n "$CANDIDATE_FILES"
+          test -n "$DECISION"
+          test -f "$REPORT_PATH"
+          test -f "$PLAN_PATH"
+          node -e "JSON.parse(require('fs').readFileSync(process.env.REPORT_PATH,'utf8'))"
+          node -e "JSON.parse(require('fs').readFileSync(process.env.PLAN_PATH,'utf8'))"
